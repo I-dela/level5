@@ -1,10 +1,12 @@
 package com.example.reminder
 
 import android.os.Bundle
+import android.view.Gravity
 import com.google.android.material.snackbar.Snackbar
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Toast
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -85,6 +87,8 @@ class MainActivity : AppCompatActivity() {
                 val position = viewHolder.adapterPosition
                 reminders.removeAt(position)
                 reminderAdapter.notifyDataSetChanged()
+                Snackbar.make(rvReminders, "Item removed", Snackbar.LENGTH_LONG).show()
+
             }
         }
         return ItemTouchHelper(callback)
