@@ -1,10 +1,11 @@
-package com.example.reminder
+package com.example.reminder.Activities
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
+import com.example.reminder.R
+import com.example.reminder.Models.Reminder
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.activity_add.*
 import kotlinx.android.synthetic.main.content_add.*
@@ -35,7 +36,8 @@ class AddActivity : AppCompatActivity() {
 
         }
 
-        val reminder = Reminder(etAddReminder.text.toString())
+        val reminder =
+            Reminder(etAddReminder.text.toString())
 
         val resultIntent = Intent()
         resultIntent.putExtra(EXTRA_REMINDER, reminder)

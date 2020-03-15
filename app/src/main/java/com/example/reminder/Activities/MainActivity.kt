@@ -1,18 +1,19 @@
-package com.example.reminder
+package com.example.reminder.Activities
 
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.view.Gravity
 import com.google.android.material.snackbar.Snackbar
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Toast
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.reminder.R
+import com.example.reminder.Models.Reminder
+import com.example.reminder.Adapters.ReminderAdapter
 
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
@@ -22,7 +23,8 @@ const val ADD_REMINDER_REQUEST_CODE = 100
 class MainActivity : AppCompatActivity() {
 
     private val reminders = arrayListOf<Reminder>()
-    private val reminderAdapter = ReminderAdapter(reminders)
+    private val reminderAdapter =
+        ReminderAdapter(reminders)
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,14 +107,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun startAddActivity() {
         val intent = Intent(this, AddActivity::class.java)
-        startActivityForResult(intent, ADD_REMINDER_REQUEST_CODE)
+        startActivityForResult(intent,
+            ADD_REMINDER_REQUEST_CODE
+        )
     }
-
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
                 ADD_REMINDER_REQUEST_CODE -> {
-                    val reminder = data!!.getParcelableExtra<Reminder>(EXTRA_REMINDER)
+                    val reminder = data!!.getParcelableExtra<Reminder>(
+                        EXTRA_REMINDER
+                    )
                     reminders.add(reminder)
                     reminderAdapter.notifyDataSetChanged()
                 }
