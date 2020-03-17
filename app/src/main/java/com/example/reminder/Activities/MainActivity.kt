@@ -14,23 +14,30 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.reminder.R
 import com.example.reminder.Models.Reminder
 import com.example.reminder.Adapters.ReminderAdapter
+import com.example.reminder.Repositories.ReminderRepository
 
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 const val ADD_REMINDER_REQUEST_CODE = 100
 
 class MainActivity : AppCompatActivity() {
 
     private val reminders = arrayListOf<Reminder>()
-    private val reminderAdapter =
-        ReminderAdapter(reminders)
+    private val reminderAdapter = ReminderAdapter(reminders)
+    private lateinit var reminderRepository: ReminderRepository
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
+        reminderRepository = ReminderRepository(this)
+
         initViews()
 
         fab.setOnClickListener {
@@ -52,6 +59,29 @@ class MainActivity : AppCompatActivity() {
 
 
         createItemTouchHelper().attachToRecyclerView(rvReminders)
+        getRemindersFromDatabase()
+
+    }
+
+
+    private fun getRemindersFromDatabase() {
+        /*
+        this method uses the main thread for all operations
+          val reminders = reminderRepository.getAllReminders()
+        this@MainActivity.reminders.clear()
+        this@MainActivity.reminders.addAll(reminders)
+        reminderAdapter.notifyDataSetChanged()
+         */
+
+        // uses lightweight threads using coroutine
+        CoroutineScope(Dispatchers.Main).launch {
+            val reminders = withContext(Dispatchers.IO) {
+                reminderRepository.getAllReminders()
+            }
+            this@MainActivity.reminders.clear()
+            this@MainActivity.reminders.addAll(reminders)
+            reminderAdapter.notifyDataSetChanged()
+        }
     }
 
 
@@ -78,8 +108,22 @@ class MainActivity : AppCompatActivity() {
             // Callback triggered when a user swiped an item.
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
-                reminders.removeAt(position)
-                reminderAdapter.notifyDataSetChanged()
+                val reminderToDelete = reminders[position]
+                //using the main thread
+//                reminderRepository.deleteReminder(reminderToDelete)
+//                getRemindersFromDatabase()
+
+                // onSwiped we do the same thing. The coroutine is started using launch from a
+                // CoroutineScope object and passing through the dispatcher we want to use.
+                // Then in the IO thread the reminder is deleted
+                // after which the getRemindersFromDatabase is called to update the recyclerview.
+                CoroutineScope(Dispatchers.Main).launch {
+                    withContext(Dispatchers.IO) {
+                        reminderRepository.deleteReminder(reminderToDelete)
+                    }
+                    getRemindersFromDatabase()
+                }
+
                 Snackbar.make(rvReminders, "Item removed", Snackbar.LENGTH_LONG).show()
 
             }
@@ -107,10 +151,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun startAddActivity() {
         val intent = Intent(this, AddActivity::class.java)
-        startActivityForResult(intent,
+        startActivityForResult(
+            intent,
             ADD_REMINDER_REQUEST_CODE
         )
     }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
@@ -118,8 +164,26 @@ class MainActivity : AppCompatActivity() {
                     val reminder = data!!.getParcelableExtra<Reminder>(
                         EXTRA_REMINDER
                     )
-                    reminders.add(reminder)
-                    reminderAdapter.notifyDataSetChanged()
+//                    reminderRepository.insertReminder(reminder)
+//                    getRemindersFromDatabase()
+
+                    /*
+                    The onActivityResult method also had to be modified because here the reminder is saved.
+                     All of the logic has been moved within a CoroutineScope using the Main dispatcher.
+                     And the inserting of the reminder has been moved inside a IO dispatcher.
+
+                    The reason why we have to start all the Coroutines inside a Main dispatcher is because it’s not
+                    possible to modify the user interface within an IO thread.
+
+                     */
+                    CoroutineScope(Dispatchers.Main).launch {
+                        withContext(Dispatchers.IO) {
+                            reminderRepository.insertReminder(reminder)
+                        }
+                        getRemindersFromDatabase()
+                    }
+
+
                 }
             }
         }

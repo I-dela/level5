@@ -1,6 +1,7 @@
 package com.example.reminder.Interfaces
 
-import androidx.room.Dao
+import androidx.room.*
+import com.example.reminder.Models.Reminder
 
 /*
 To access your app's data using the Room persistence library, you work with data access objects, or DAOs.
@@ -16,4 +17,19 @@ Room will take this interface and implement all the methods for you.
  */
 @Dao
 interface ReminderDao {
+
+    //By adding the suspend keyword to the method we have specified that
+    // this  method cannot be called without using Coroutines.
+
+    @Query("SELECT * FROM reminderTable")
+    suspend fun getAllReminders(): List<Reminder>
+
+    @Insert
+    suspend fun insertReminder(reminder: Reminder)
+
+    @Delete
+    suspend fun deleteReminder(reminder: Reminder)
+
+    @Update
+    suspend fun updateReminder(reminder: Reminder)
 }
