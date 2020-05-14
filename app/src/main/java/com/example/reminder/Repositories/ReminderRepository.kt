@@ -1,6 +1,8 @@
 package com.example.reminder.Repositories
 
 import android.content.Context
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import com.example.reminder.Interfaces.ReminderDao
 import com.example.reminder.Models.Reminder
 import com.example.reminder.ReminderRoomDatabase
@@ -18,27 +20,27 @@ The methods will use the reminderDao methods to make the actual operations.
  */
 
 class ReminderRepository(context:Context) {
-    private var reminderDao: ReminderDao
+    private var reminderDao: ReminderDao?
 
     init {
         val reminderRoomDatabase = ReminderRoomDatabase.getDatabase(context)
-        reminderDao = reminderRoomDatabase!!.reminderDao()
+        reminderDao = reminderRoomDatabase?.reminderDao()
     }
 
-   suspend fun getAllReminders(): List<Reminder> {
-        return reminderDao.getAllReminders()
+    fun getAllReminders(): LiveData<List<Reminder>> {
+        return reminderDao?.getAllReminders() ?: MutableLiveData(emptyList())
     }
 
-   suspend fun insertReminder(reminder: Reminder) {
-        reminderDao.insertReminder(reminder)
+    fun insertReminder(reminder: Reminder) {
+        reminderDao?.insertReminder(reminder)
     }
 
    suspend fun deleteReminder(reminder: Reminder) {
-        reminderDao.deleteReminder(reminder)
+        reminderDao?.deleteReminder(reminder)
     }
 
     suspend  fun updateReminder(reminder: Reminder) {
-        reminderDao.updateReminder(reminder)
+        reminderDao?.updateReminder(reminder)
     }
 
 }

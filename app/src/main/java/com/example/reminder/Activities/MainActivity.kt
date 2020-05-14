@@ -3,6 +3,7 @@ package com.example.reminder.Activities
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import com.google.android.material.snackbar.Snackbar
 import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
@@ -14,36 +15,64 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.reminder.R
 import com.example.reminder.Models.Reminder
 import com.example.reminder.Adapters.ReminderAdapter
-import com.example.reminder.Repositories.ReminderRepository
+import com.example.reminder.ViewModel.MainActivityViewModel
+import androidx.activity.viewModels
+import androidx.lifecycle.Observer
+
 
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_main.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 const val ADD_REMINDER_REQUEST_CODE = 100
+const val TAG = "MainActivity"
+
+/*
+Inserting and deleting a reminder has been changed to use the newly made methods from the ViewModel.
+ Because the viewmodel now takes care of all repository operations the ReminderRepository class variable can be removed.
+ All repository interactions have now been moved to the viewmodel layer.
+ */
 
 class MainActivity : AppCompatActivity() {
 
     private val reminders = arrayListOf<Reminder>()
     private val reminderAdapter = ReminderAdapter(reminders)
-    private lateinit var reminderRepository: ReminderRepository
+
+
+    //ViewModels are initialized using the viewModels() helper method from the activity-ktx artifact.
+    // Using this will let the Architecture Components initialize the ViewModel for us which also
+    // makes it able to be lifecycle aware.
+    private val viewModel: MainActivityViewModel by viewModels()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
-        reminderRepository = ReminderRepository(this)
+
 
         initViews()
 
         fab.setOnClickListener {
             startAddActivity()
         }
+        observeViewModel()
+
     }
+
+    /**
+     * contains the observer to the LiveData reminders object from the ViewModel
+     */
+    private fun observeViewModel() {
+        //data changes then this Observer will get invoked.
+        // Whenever the reminders list changes from the LiveData we want to update the recyclerview.
+        viewModel.reminders.observe(this, Observer { reminders ->
+            this@MainActivity.reminders.clear()
+            this@MainActivity.reminders.addAll(reminders)
+            reminderAdapter.notifyDataSetChanged()
+        })
+
+    }
+
 
     private fun initViews() {
         // Initialize the recycler view with a linear layout manager, adapter
@@ -59,29 +88,7 @@ class MainActivity : AppCompatActivity() {
 
 
         createItemTouchHelper().attachToRecyclerView(rvReminders)
-        getRemindersFromDatabase()
 
-    }
-
-
-    private fun getRemindersFromDatabase() {
-        /*
-        this method uses the main thread for all operations
-          val reminders = reminderRepository.getAllReminders()
-        this@MainActivity.reminders.clear()
-        this@MainActivity.reminders.addAll(reminders)
-        reminderAdapter.notifyDataSetChanged()
-         */
-
-        // uses lightweight threads using coroutine
-        CoroutineScope(Dispatchers.Main).launch {
-            val reminders = withContext(Dispatchers.IO) {
-                reminderRepository.getAllReminders()
-            }
-            this@MainActivity.reminders.clear()
-            this@MainActivity.reminders.addAll(reminders)
-            reminderAdapter.notifyDataSetChanged()
-        }
     }
 
 
@@ -106,23 +113,14 @@ class MainActivity : AppCompatActivity() {
             }
 
             // Callback triggered when a user swiped an item.
+            // onSwiped has been changed to use the ViewModel deleteReminder method
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.adapterPosition
                 val reminderToDelete = reminders[position]
-                //using the main thread
-//                reminderRepository.deleteReminder(reminderToDelete)
-//                getRemindersFromDatabase()
 
-                // onSwiped we do the same thing. The coroutine is started using launch from a
-                // CoroutineScope object and passing through the dispatcher we want to use.
-                // Then in the IO thread the reminder is deleted
-                // after which the getRemindersFromDatabase is called to update the recyclerview.
-                CoroutineScope(Dispatchers.Main).launch {
-                    withContext(Dispatchers.IO) {
-                        reminderRepository.deleteReminder(reminderToDelete)
-                    }
-                    getRemindersFromDatabase()
-                }
+
+                viewModel.deleteReminder(reminderToDelete)
+
 
                 Snackbar.make(rvReminders, "Item removed", Snackbar.LENGTH_LONG).show()
 
@@ -158,36 +156,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
                 ADD_REMINDER_REQUEST_CODE -> {
-                    val reminder = data!!.getParcelableExtra<Reminder>(
-                        EXTRA_REMINDER
-                    )
-//                    reminderRepository.insertReminder(reminder)
-//                    getRemindersFromDatabase()
+                    data?.let {
+                        val reminder = data!!.getParcelableExtra<Reminder>(
+                            EXTRA_REMINDER
+                        )
 
-                    /*
-                    The onActivityResult method also had to be modified because here the reminder is saved.
-                     All of the logic has been moved within a CoroutineScope using the Main dispatcher.
-                     And the inserting of the reminder has been moved inside a IO dispatcher.
+                        reminder?.let {safeReminder ->
 
-                    The reason why we have to start all the Coroutines inside a Main dispatcher is because it’s not
-                    possible to modify the user interface within an IO thread.
+                                viewModel.insertReminder(safeReminder)
 
-                     */
-                    CoroutineScope(Dispatchers.Main).launch {
-                        withContext(Dispatchers.IO) {
-                            reminderRepository.insertReminder(reminder)
+
+
+                        }?: run {
+                            Log.e(TAG, "reminder is null")
                         }
-                        getRemindersFromDatabase()
+                    } ?: run {
+                        Log.e(TAG, "null intent data received")
                     }
 
 
+
+                }
                 }
             }
+
         }
 
-
     }
-}
+

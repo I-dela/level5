@@ -1,5 +1,6 @@
 package com.example.reminder.Interfaces
 
+import androidx.lifecycle.LiveData
 import androidx.room.*
 import com.example.reminder.Models.Reminder
 
@@ -22,10 +23,10 @@ interface ReminderDao {
     // this  method cannot be called without using Coroutines.
 
     @Query("SELECT * FROM reminderTable")
-    suspend fun getAllReminders(): List<Reminder>
+     fun getAllReminders(): LiveData<List<Reminder>>
 
     @Insert
-    suspend fun insertReminder(reminder: Reminder)
+    fun insertReminder(reminder: Reminder)
 
     @Delete
     suspend fun deleteReminder(reminder: Reminder)
